@@ -5,7 +5,7 @@ High-dimensional biomedical datasets routinely contain sparse signals embedded a
 
  <tr>
     <td>
-      <img src="/image/github.jpg" alt="overview" width="200">
+      <img src="/image/github.jpg" alt="overview" width="1000">
     </td>
  </tr>
 

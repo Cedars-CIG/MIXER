@@ -11,10 +11,10 @@ tion for eXplanatory and prEdictive Ranking), a domain-agnostic approach that in
 grates multiple selection metrics into one consensus model via adaptive weighting that
 quantifies each criterion’s contribution.
 
-## Why MIXER?
+## Key ideas of MIXER
 
-Significance ≠ Predictiveness. What’s “important” for inference is often different from what generalizes for prediction.
+* Significance ≠ Predictiveness. What’s “important” for inference is often different from what generalizes for prediction.
 
-Multi-metric integration. Combine p-values with predictive metrics (e.g., AUROC, F1, balanced accuracy) rather than choosing one.
+* Multi-metric integration. Combine p-values with predictive metrics (e.g., AUROC, F1, balanced accuracy) rather than choosing one.
 
-One deployable model. MIXER returns a single consensus model, rather than multiple competing models, for downstream deployment.
+* One deployable model. MIXER returns a single consensus model, rather than multiple competing models, for downstream deployment.

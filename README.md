@@ -11,7 +11,7 @@ tion for eXplanatory and prEdictive Ranking), a domain-agnostic approach that in
 grates multiple selection metrics into one consensus model via adaptive weighting that
 quantifies each criterion’s contribution.
 
-##Why MIXER?
+## Why MIXER?
 
 Significance ≠ Predictiveness. What’s “important” for inference is often different from what generalizes for prediction.
 

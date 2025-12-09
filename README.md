@@ -25,4 +25,26 @@ High-dimensional biomedical datasets routinely contain sparse signals embedded a
 * Moves beyond p-value–only selection to bridge inference-driven and prediction-driven prioritization
 
 
-test
+## Installation and Loading
+
+1. To install in R library, use:
+     ```ruby
+     install.packages("devtools") #if you do not have the devtools package
+     devtools::install_github("Cedars-CIG/MIXER")
+     ```
+2. To load, use:
+     ```ruby
+     library(MIXER)
+     ```
+
+## Tutorial
+Please refer to https://cedars-cig.github.io/MIXER/ for a getting-started tutorial. 
+
+## Current Functions:
+- (place holder)
+
+
+## Basic Function Usage 
+```ruby
+weights <- MIXER(...)
+```

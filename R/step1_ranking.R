@@ -4,20 +4,20 @@
 # univariate logistic regression and returns ranked SNP lists
 # for each metric (largest to smallest).
 
-rank_snp_metrics <- function(
-    phenotype_train,
-    genotype_train,
-    phenotype_test,
-    genotype_test
+rank_feature_metrics <- function(
+    y_train,
+    feature_train,
+    y_test,
+    feature_test
 ) {
-  # phenotype_train: numeric vector (0/1), training outcome
-  # genotype_train:  matrix/data.frame, rows = individuals, cols = SNPs (training)
-  # phenotype_test:  numeric vector (0/1), test/validation outcome
-  # genotype_test:   matrix/data.frame, rows = individuals, cols = SNPs (test)
+  # y_train: numeric vector (0/1), training outcome
+  # feature_train:  matrix/data.frame, rows = individuals, cols = SNPs (training)
+  # y_test:  numeric vector (0/1), test/validation outcome
+  # feature_test:   matrix/data.frame, rows = individuals, cols = SNPs (test)
   
-  snp_names <- colnames(genotype_train)
+  snp_names <- colnames(feature_train)
   if (is.null(snp_names)) {
-    stop("genotype_train must have column names (SNP IDs).")
+    stop("feature_train must have column names (SNP IDs).")
   }
   
   # Initialize containers
@@ -36,12 +36,12 @@ rank_snp_metrics <- function(
     }
     
     df_train <- data.frame(
-      y   = phenotype_train,
-      snp = genotype_train[, i]
+      y   = y_train,
+      snp = feature_train[, i]
     )
     df_test <- data.frame(
-      y   = phenotype_test,
-      snp = genotype_test[, i]
+      y   = y_test,
+      snp = feature_test[, i]
     )
     
     # Univariate logistic regression

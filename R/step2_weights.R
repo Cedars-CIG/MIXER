@@ -3,13 +3,13 @@
 
 
 # 2a. Ridge regression helper
-Ridge_func <- function(y, geno, family = "binomial", nfolds = 20) {
+Ridge_func <- function(y, feature, family = "binomial", nfolds = 20) {
   # y: response vector (e.g., 0/1 for binomial)
-  # geno: genotype matrix or data.frame (rows: samples, cols: SNPs)
+  # feature: feature matrix or data.frame (rows: samples, cols: SNPs)
   # family: glmnet family, default "binomial"
   # nfolds: number of CV folds for cv.glmnet
   
-  x <- as.matrix(geno)
+  x <- as.matrix(feature)
   
   message("Step 2a - Ridge regression start...")
   
@@ -130,34 +130,34 @@ threshold_moving_func <- function(mod, df, threshold_list = NULL, n_grid = 1000)
 compute_metric_weights <- function(
     y_train,
     y_val,
-    geno_train_list,
-    geno_val_list,
+    feature_train_list,
+    feature_val_list,
     ridge_coef_list,
     n_threshold = 2000
 ) {
   # y_train: outcome vector for training set (0/1)
   # y_val:   outcome vector for validation set (0/1)
-  # geno_train_list: *named* list of training genotype matrices (one per metric)
-  # geno_val_list:   *named* list of validation genotype matrices (one per metric)
+  # feature_train_list: *named* list of training feature matrices (one per metric)
+  # feature_val_list:   *named* list of validation feature matrices (one per metric)
   # ridge_coef_list: *named* list of ridge coef data.frames with columns SNP, beta
   # n_threshold: number of thresholds for scanning in threshold_moving_func
   
-  if (is.null(names(geno_train_list)) ||
-      is.null(names(geno_val_list))   ||
+  if (is.null(names(feature_train_list)) ||
+      is.null(names(feature_val_list))   ||
       is.null(names(ridge_coef_list))) {
-    stop("geno_train_list, geno_val_list, and ridge_coef_list must be *named* lists.")
+    stop("feature_train_list, feature_val_list, and ridge_coef_list must be *named* lists.")
   }
   
-  metrics <- names(geno_train_list)
+  metrics <- names(feature_train_list)
   
-  if (!identical(sort(metrics), sort(names(geno_val_list))) ||
+  if (!identical(sort(metrics), sort(names(feature_val_list))) ||
       !identical(sort(metrics), sort(names(ridge_coef_list)))) {
-    stop("Names of geno_train_list, geno_val_list, and ridge_coef_list must match.")
+    stop("Names of feature_train_list, feature_val_list, and ridge_coef_list must match.")
   }
   
   # Reorder lists to consistent order
-  geno_train_list <- geno_train_list[metrics]
-  geno_val_list   <- geno_val_list[metrics]
+  feature_train_list <- feature_train_list[metrics]
+  feature_val_list   <- feature_val_list[metrics]
   ridge_coef_list <- ridge_coef_list[metrics]
   
   # 1) For each metric: build PRS, fit glm, run threshold-moving
@@ -168,12 +168,12 @@ compute_metric_weights <- function(
     crit <- metrics[i]
     message("Step 2b - Processing metric / SNP set: ", crit)
     
-    geno_train <- geno_train_list[[i]]
-    geno_val   <- geno_val_list[[i]]
+    feature_train <- feature_train_list[[i]]
+    feature_val   <- feature_val_list[[i]]
     coef_df    <- ridge_coef_list[[i]]  # data.frame(SNP, beta)
     
-    # Align SNPs between geno and coef
-    snp_common <- intersect(colnames(geno_train), coef_df$SNP)
+    # Align SNPs between feature and coef
+    snp_common <- intersect(colnames(feature_train), coef_df$SNP)
     
     if (length(snp_common) == 0) {
       warning("No overlapping SNPs for metric ", crit, ". Skipping; result will be NULL.")
@@ -183,8 +183,8 @@ compute_metric_weights <- function(
     
     coef_vec <- coef_df$beta[match(snp_common, coef_df$SNP)]
     
-    x_train <- as.matrix(geno_train[, snp_common, drop = FALSE])
-    x_val   <- as.matrix(geno_val[,   snp_common, drop = FALSE])
+    x_train <- as.matrix(feature_train[, snp_common, drop = FALSE])
+    x_val   <- as.matrix(feature_val[,   snp_common, drop = FALSE])
     
     # PRS
     prs_train <- as.numeric(x_train %*% coef_vec)
@@ -314,7 +314,7 @@ compute_metric_weights <- function(
 
 
 # 2d. Combine ridge coefs + metric weights into SNP-level adaptive weights
-compute_snp_weights <- function(ridge_coef_list, metric_weights, epsilon = 1e-4) {
+compute_feature_weights <- function(ridge_coef_list, metric_weights, epsilon = 1e-4) {
   # ridge_coef_list: *named* list of data.frames, each with columns SNP, beta
   # metric_weights:  data.frame with columns:
   #                  - metric   (matching names(ridge_coef_list))

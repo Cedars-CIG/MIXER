@@ -105,6 +105,28 @@ adaptive_LASSO_fit <- function(y, feature, df_weight,
 
 
 # Main Step-3 wrapper: tune lambda range + run adaptive LASSO
+
+#' Run adaptive LASSO with data-driven lambda range tuning
+#'
+#' This function tunes \code{lambda_min} and \code{lambda_max} to target a desired
+#' range of selected features, then performs cross-validated adaptive LASSO using
+#' \code{glmnet} with \code{penalty.factor} determined by \code{df_weight}.
+#'
+#' @param y_train Training outcome vector.
+#' @param feature_train Training feature matrix/data.frame (rows = samples, cols = features).
+#' @param df_weight Data.frame with columns \code{SNP} and \code{weight}.
+#' @param min_num Target minimum number of selected features when tuning \code{lambda_max}.
+#' @param max_prop Target maximum proportion of selected features when tuning \code{lambda_min};
+#' \code{max_num = max_prop * nrow(df_weight)}.
+#' @param lambda_init_min Initial guess for \code{lambda_min}.
+#' @param lambda_init_max Initial guess for \code{lambda_max}.
+#' @param nlambda Number of lambdas in the final cross-validated grid.
+#' @param max_iter Maximum number of iterations when searching \code{lambda_min} and \code{lambda_max}.
+#' @param family glmnet family (default: \code{"binomial"}).
+#'
+#' @return A data.frame with columns \code{SNP} and \code{beta} for nonzero adaptive LASSO coefficients.
+#'
+#' @export
 run_adaptive_LASSO <- function(
     y_train,
     feature_train,
@@ -150,7 +172,7 @@ run_adaptive_LASSO <- function(
   while ((num > min_num_target) && (iter <= max_iter)) {
     num <- adaptive_LASSO_selection(
       y        = y_train,
-      feature     = x_train,
+      feature  = x_train,
       df_weight= df_weight,
       lambda   = lambda_max,
       family   = family
@@ -177,7 +199,7 @@ run_adaptive_LASSO <- function(
   while ((num < max_num_target) && (iter <= max_iter)) {
     num <- adaptive_LASSO_selection(
       y        = y_train,
-      feature     = x_train,
+      feature  = x_train,
       df_weight= df_weight,
       lambda   = lambda_min,
       family   = family
@@ -203,7 +225,7 @@ run_adaptive_LASSO <- function(
   # Final adaptive LASSO fit
   df_coef <- adaptive_LASSO_fit(
     y        = y_train,
-    feature     = x_train,
+    feature  = x_train,
     df_weight= df_weight,
     lam_min  = lambda_min,
     lam_max  = lambda_max,

@@ -127,7 +127,25 @@ threshold_moving_func <- function(mod, df, threshold_list = NULL, n_grid = 1000)
 
 
 # 2c. Compute metric-level weights from PRS performance (train/validation)
-compute_metric_weights <- function(
+
+#' Compute Predictive Importance Metric (PIM) for each feature set
+#'
+#' PIM represents the "predictive importance metric" for each feature set (e.g., each
+#' metric-specific top-ranked subset). It is computed by fitting a PRS model on the
+#' training set, evaluating threshold-dependent performance on the validation set,
+#' and aggregating normalized performance metrics into a single score.
+#'
+#' @param y_train Outcome vector for training set (0/1).
+#' @param y_val Outcome vector for validation set (0/1).
+#' @param feature_train_list Named list of training feature matrices (one per feature set / metric).
+#' @param feature_val_list Named list of validation feature matrices (one per feature set / metric).
+#' @param ridge_coef_list Named list of ridge regression coefficient data.frames with columns \code{SNP} and \code{beta}.
+#' @param n_threshold Number of thresholds for scanning in \code{threshold_moving_func}.
+#'
+#' @return A data.frame with columns \code{metric} (feature-set label) and \code{PIM} (aggregated score).
+#'
+#' @export
+compute_PIM <- function(
     y_train,
     y_val,
     feature_train_list,
@@ -222,12 +240,12 @@ compute_metric_weights <- function(
   metrics    <- names(rslt_list)
   
   if (length(rslt_list) == 0) {
-    stop("No valid threshold-moving results; check inputs to compute_metric_weights().")
+    stop("No valid threshold-moving results; check inputs to compute_PIM().")
   }
   
   message("Step 2b - summary start...")
   
-  # 2) Summarize rslt_list into metric_weights
+  # 2) Summarize rslt_list into PIM
   prevalence <- mean(y_val)
   
   best_metric <- data.frame(
@@ -301,20 +319,38 @@ compute_metric_weights <- function(
   }
   
   # Aggregate across metrics
-  M_minmax <- rowSums(normalized_metric[, -1, drop = FALSE], na.rm = TRUE)
+  PIM <- rowSums(normalized_metric[, -1, drop = FALSE], na.rm = TRUE)
   
-  metric_weights <- data.frame(
-    metric   = normalized_metric$SNP_set,
-    M_minmax = M_minmax,
+  pim_df <- data.frame(
+    metric = normalized_metric$SNP_set,
+    PIM    = PIM,
     stringsAsFactors = FALSE
   )
   
-  metric_weights
+  pim_df
 }
 
 
 # 2d. Combine ridge coefs + metric weights into SNP-level adaptive weights
-compute_feature_weights <- function(ridge_coef_list, metric_weights, epsilon = 1e-4) {
+
+#' Compute feature-level adaptive weights from ridge coefficients and PIM
+#'
+#' Integrates ridge coefficients across multiple feature sets/metrics and uses the
+#' corresponding PIM weights to construct adaptive feature weights for downstream
+#' adaptive LASSO.
+#'
+#' @param ridge_coef_list Named list of data.frames, each with columns \code{SNP} and \code{beta}.
+#' @param pim_df Data.frame returned by \code{compute_PIM} with columns \code{metric} and \code{PIM}.
+#' @param epsilon Small constant to avoid zero weights.
+#'
+#' @return A list with:
+#' \itemize{
+#'   \item \code{df_coef}: data.frame containing union of features and per-metric \eqn{|beta|}.
+#'   \item \code{df_weight}: data.frame with columns \code{SNP} and \code{weight}.
+#' }
+#'
+#' @export
+compute_feature_weights <- function(ridge_coef_list, pim_df, epsilon = 1e-4) {
   # ridge_coef_list: *named* list of data.frames, each with columns SNP, beta
   # metric_weights:  data.frame with columns:
   #                  - metric   (matching names(ridge_coef_list))
@@ -327,8 +363,8 @@ compute_feature_weights <- function(ridge_coef_list, metric_weights, epsilon = 1
   
   metrics <- names(ridge_coef_list)
   
-  if (!all(metrics %in% metric_weights$metric)) {
-    stop("All names(ridge_coef_list) must appear in metric_weights$metric.")
+  if (!all(metrics %in% pim_df$metric)) {
+    stop("All names(ridge_coef_list) must appear in pim_df$metric.")
   }
   
   # Union of all SNPs across metrics
@@ -346,8 +382,8 @@ compute_feature_weights <- function(ridge_coef_list, metric_weights, epsilon = 1
     df_coef[[m]] <- abs(col_vals)
   }
   
-  # Metric weights in same order as metrics
-  w <- metric_weights$M_minmax[match(metrics, metric_weights$metric)]
+  # PIM weights in same order as metrics
+  w <- pim_df$PIM[match(metrics, pim_df$metric)]
   
   beta_mat     <- as.matrix(df_coef[, metrics, drop = FALSE])
   weighted_sum <- as.numeric(beta_mat %*% w)

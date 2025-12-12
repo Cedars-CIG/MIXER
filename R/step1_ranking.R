@@ -4,6 +4,20 @@
 # univariate logistic regression and returns ranked SNP lists
 # for each metric (largest to smallest).
 
+#' Rank features by multiple univariate metrics
+#'
+#' Computes per-feature metrics using univariate logistic regression and
+#' returns ranked feature lists (largest to smallest) for each metric.
+#'
+#' @param y_train Numeric vector (0/1), training outcome.
+#' @param feature_train Matrix/data.frame of features for training (rows = individuals, cols = features/SNPs).
+#' @param y_test Numeric vector (0/1), test/validation outcome.
+#' @param feature_test Matrix/data.frame of features for testing/validation (rows = individuals, cols = features/SNPs).
+#'
+#' @return A named list of data.frames. Each element corresponds to one metric
+#' and contains columns \code{SNP} and the metric value, sorted from largest to smallest.
+#'
+#' @export
 rank_feature_metrics <- function(
     y_train,
     feature_train,
@@ -61,10 +75,10 @@ rank_feature_metrics <- function(
     
     # Directional hard call based on sign of beta
     if (beta_vec[i] >= 0) {
-      # 0 = control, 1/2 = case
+      # 0 = control, and 1/2 case
       y_pred <- ifelse(df_test$snp > 0, 1, 0)
     } else {
-      # 0 = case, 1/2 = control
+      # 0 = case, and 1/2 control
       y_pred <- ifelse(df_test$snp == 0, 1, 0)
     }
     

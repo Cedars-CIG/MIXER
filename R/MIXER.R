@@ -6,6 +6,27 @@
 #   Step 2: Ridge + metric-level weights + feature-level weights
 #   Step 3: Adaptive LASSO selection
 
+#' MIXER
+#'
+#' Multi-metric Integration for eXplanatory and prEdictive Ranking.
+#'
+#' @param y_train Training outcome vector.
+#' @param feature_train Training feature matrix/data.frame (samples x SNPs).
+#' @param y_val Validation outcome vector.
+#' @param feature_val Validation feature matrix/data.frame (samples x SNPs).
+#' @param top_k Number of top SNPs per metric used for ridge regression.
+#' @param family Model family passed to glmnet (default: "binomial").
+#' @param nfolds_ridge Number of CV folds for ridge regression.
+#' @param n_threshold Number of thresholds for metric weighting.
+#' @param min_num Minimum target SNP count for lambda_max tuning.
+#' @param max_prop Maximum proportion of SNPs allowed for lambda_min tuning.
+#' @param lambda_init_min Initial guess for lambda_min.
+#' @param lambda_init_max Initial guess for lambda_max.
+#' @param nlambda_adalasso Number of lambdas for adaptive LASSO CV grid.
+#'
+#' @return A list containing ranked SNPs, ridge coefficients, metric weights,
+#' SNP weights, and adaptive LASSO selected SNPs.
+#'
 #' @export
 MIXER <- function(
     y_train,

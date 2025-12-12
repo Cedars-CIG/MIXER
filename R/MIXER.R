@@ -6,7 +6,7 @@
 #   Step 2: Ridge + metric-level weights + feature-level weights
 #   Step 3: Adaptive LASSO selection
 
-
+#' @export
 MIXER <- function(
     y_train,
     feature_train,

@@ -53,7 +53,7 @@ MIXER <- function(
     stop("rank_feature_metrics must return a *named* list, with one element per metric.")
   }
   
-  # Build top-feature geno lists for train/val
+  # Build top-feature feature lists for train/val
   feature_train_list <- vector("list", length(metric_names))
   feature_val_list   <- vector("list", length(metric_names))
   names(feature_train_list) <- metric_names
@@ -81,10 +81,10 @@ MIXER <- function(
   ridge_coef_list <- lapply(
     feature_train_list,
     function(gm) Ridge_func(
-      y      = y_train,
-      geno   = gm,
-      family = family,
-      nfolds = nfolds_ridge
+      y       = y_train,
+      feature = gm,
+      family  = family,
+      nfolds  = nfolds_ridge
     )
   )
   names(ridge_coef_list) <- metric_names

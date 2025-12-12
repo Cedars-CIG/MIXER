@@ -81,7 +81,7 @@ result <- MIXER(
   feature_train = feature_train,
   y_val          = y_val,
   feature_val   = feature_val,
-  top_k          = 500,      # number of top features used in ridge per metric
+  top_k          = 5000,     # number of top features used in ridge per metric
   n_threshold    = 2000,     # number of thresholds for PIM construction
   min_num        = 10,       # minimum target feature count (lambda_max tuning)
   max_prop       = 0.05,     # maximum proportion of features allowed (lambda_min tuning)

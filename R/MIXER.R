@@ -33,7 +33,7 @@ MIXER <- function(
     feature_train,
     y_val,
     feature_val,
-    top_k = 500,
+    top_k = 5000,
     family = "binomial",
     nfolds_ridge = 20,
     n_threshold = 2000,

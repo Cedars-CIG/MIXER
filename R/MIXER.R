@@ -42,9 +42,9 @@ MIXER <- function(
   # -----------------------------
   message("MIXER - Step 1: feature ranking by multiple metrics...")
   ranked_list <- rank_feature_metrics(
-    phenotype_train = y_train,
+    y_train = y_train,
     feature_train  = feature_train,
-    phenotype_test  = y_val,
+    y_test  = y_val,
     feature_test   = feature_val
   )
   

@@ -69,6 +69,8 @@ High-dimensional biomedical datasets routinely contain sparse signals embedded a
 
 The file `features.csv` contains a simulated example feature matrix with 5000 individuals and 16470 features, designed to reflect realistic high-dimensional data characteristics observed in large biobank-scale studies. The feature values were derived from a subsample of real-world UK Biobank data and subsequently anonymized by randomly permuting individuals, ensuring that no individual-level information is preserved while maintaining realistic marginal distributions, sparsity patterns, and correlation structure across features. This dataset is provided solely for demonstration and testing purposes, allowing users to run the MIXER pipeline end-to-end on data that resemble real applications without relying on restricted or sensitive datasets.
 
+(test)
+
 ## Basic Function Usage
 
 ```r

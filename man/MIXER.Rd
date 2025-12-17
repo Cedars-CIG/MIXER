@@ -23,23 +23,23 @@ MIXER(
 \arguments{
 \item{y_train}{Training outcome vector.}
 
-\item{feature_train}{Training feature matrix/data.frame (samples x SNPs).}
+\item{feature_train}{Training feature matrix/data.frame (samples x features).}
 
 \item{y_val}{Validation outcome vector.}
 
-\item{feature_val}{Validation feature matrix/data.frame (samples x SNPs).}
+\item{feature_val}{Validation feature matrix/data.frame (samples x features).}
 
-\item{top_k}{Number of top SNPs per metric used for ridge regression.}
+\item{top_k}{Number of top features per metric used for ridge regression.}
 
 \item{family}{Model family passed to glmnet (default: "binomial").}
 
 \item{nfolds_ridge}{Number of CV folds for ridge regression.}
 
-\item{n_threshold}{Number of thresholds for metric weighting.}
+\item{n_threshold}{Number of thresholds for PIM construction.}
 
-\item{min_num}{Minimum target SNP count for lambda_max tuning.}
+\item{min_num}{Minimum target feature count for lambda_max tuning.}
 
-\item{max_prop}{Maximum proportion of SNPs allowed for lambda_min tuning.}
+\item{max_prop}{Maximum proportion of features allowed for lambda_min tuning.}
 
 \item{lambda_init_min}{Initial guess for lambda_min.}
 
@@ -48,8 +48,8 @@ MIXER(
 \item{nlambda_adalasso}{Number of lambdas for adaptive LASSO CV grid.}
 }
 \value{
-A list containing ranked SNPs, ridge coefficients, metric weights,
-SNP weights, and adaptive LASSO selected SNPs.
+A list containing ranked features, ridge coefficients, PIM, feature weights,
+and adaptive LASSO selected features.
 }
 \description{
 Multi-metric Integration for eXplanatory and prEdictive Ranking.

@@ -33,11 +33,7 @@
 #' @examples
 #' \dontrun{
 #' data(features_example)
-#' out <- simulation_data(
-#'   effect_size = 1,
-#'   feature_causal_positive = 50,
-#'   feature_causal_negative = 50
-#' )
+#' out <- simulation_data()
 #' }
 #'
 #' @export
@@ -53,6 +49,7 @@ simulation_data <- function(df_feature = NULL,
                             beta_sd = 0.2,
                             seed = 12345) {
 
+  # ---- Load example data if needed ----
   if (is.null(df_feature)) {
     utils::data("features_example", package = "MIXER", envir = environment())
     df_feature <- get("features_example", envir = environment(), inherits = FALSE)
@@ -65,14 +62,19 @@ simulation_data <- function(df_feature = NULL,
 
   set.seed(seed)
 
+  # ---- Separate IID and feature matrix ----
   feature_names <- setdiff(colnames(df_feature), iid_col)
   X <- as.matrix(df_feature[, feature_names, drop = FALSE])
 
   n_pos <- feature_causal_positive
   n_neg <- feature_causal_negative
   n_causal <- n_pos + n_neg
-  if (n_causal > ncol(X)) stop("Number of causal features exceeds available features.")
 
+  if (n_causal > ncol(X)) {
+    stop("Number of causal features exceeds available features.")
+  }
+
+  # ---- Simulate causal effects ----
   causal_features <- sample(feature_names, n_causal)
   beta <- c(
     stats::rnorm(n_pos, effect_size, beta_sd),
@@ -87,6 +89,7 @@ simulation_data <- function(df_feature = NULL,
 
   X_causal <- X[, causal_features, drop = FALSE]
 
+  # ---- Simulate outcome ----
   logit_inv <- function(x) 1 / (1 + exp(-x))
   intercept <- stats::uniroot(
     function(b0) mean(logit_inv(drop(X_causal %*% beta) + b0)) - target_prev,
@@ -96,6 +99,7 @@ simulation_data <- function(df_feature = NULL,
   prob <- logit_inv(drop(X_causal %*% beta) + intercept)
   y <- stats::rbinom(length(prob), 1, prob)
 
+  # ---- Stratified split ----
   idx_case <- which(y == 1)
   idx_ctrl <- which(y == 0)
 
@@ -118,13 +122,14 @@ simulation_data <- function(df_feature = NULL,
   idx_val   <- c(sc$val,   sn$val)
   idx_test  <- c(sc$test,  sn$test)
 
+  # ---- Return MIXER-ready objects (NO IID) ----
   list(
     y_train = y[idx_train],
     y_val = y[idx_val],
     y_test = y[idx_test],
-    feature_train = df_feature[idx_train, , drop = FALSE],
-    feature_val = df_feature[idx_val, , drop = FALSE],
-    feature_test = df_feature[idx_test, , drop = FALSE],
+    feature_train = X[idx_train, , drop = FALSE],
+    feature_val = X[idx_val, , drop = FALSE],
+    feature_test = X[idx_test, , drop = FALSE],
     causal_table = causal_table,
     intercept = intercept,
     prevalence_observed = mean(y)

@@ -65,11 +65,7 @@ If \code{df_feature} is \code{NULL}, the internal example dataset
 \examples{
 \dontrun{
 data(features_example)
-out <- simulation_data(
-  effect_size = 1,
-  feature_causal_positive = 50,
-  feature_causal_negative = 50
-)
+out <- simulation_data()
 }
 
 }

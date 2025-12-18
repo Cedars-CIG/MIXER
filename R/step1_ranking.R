@@ -11,8 +11,8 @@
 #'
 #' @param y_train Numeric vector (0/1), training outcome.
 #' @param feature_train Matrix/data.frame of features for training (rows = individuals, cols = features/SNPs).
-#' @param y_test Numeric vector (0/1), test/validation outcome.
-#' @param feature_test Matrix/data.frame of features for testing/validation (rows = individuals, cols = features/SNPs).
+#' @param y_val Numeric vector (0/1), test/validation outcome.
+#' @param feature_val Matrix/data.frame of features for testing/validation (rows = individuals, cols = features/SNPs).
 #'
 #' @return A named list of data.frames. Each element corresponds to one metric
 #' and contains columns \code{SNP} and the metric value, sorted from largest to smallest.
@@ -21,13 +21,13 @@
 rank_feature_metrics <- function(
     y_train,
     feature_train,
-    y_test,
-    feature_test
+    y_val,
+    feature_val
 ) {
   # y_train: numeric vector (0/1), training outcome
   # feature_train:  matrix/data.frame, rows = individuals, cols = SNPs (training)
-  # y_test:  numeric vector (0/1), test/validation outcome
-  # feature_test:   matrix/data.frame, rows = individuals, cols = SNPs (test)
+  # y_val:  numeric vector (0/1), test/validation outcome
+  # feature_val:   matrix/data.frame, rows = individuals, cols = SNPs (test)
   
   snp_names <- colnames(feature_train)
   if (is.null(snp_names)) {
@@ -53,9 +53,9 @@ rank_feature_metrics <- function(
       y   = y_train,
       snp = feature_train[, i]
     )
-    df_test <- data.frame(
-      y   = y_test,
-      snp = feature_test[, i]
+    df_val <- data.frame(
+      y   = y_val,
+      snp = feature_val[, i]
     )
     
     # Univariate logistic regression
@@ -68,29 +68,29 @@ rank_feature_metrics <- function(
     pval_df$minus_log10_p[i] <- -log10(summ["snp", "Pr(>|z|)"])
     
     # Predicted probabilities on test set for ROC AUC
-    prob_test <- stats::predict(mod, newdata = df_test, type = "response")
-    pred_obj  <- ROCR::prediction(prob_test, df_test$y)
+    prob_val <- stats::predict(mod, newdata = df_val, type = "response")
+    pred_obj  <- ROCR::prediction(prob_val, df_val$y)
     auc_obj   <- ROCR::performance(pred_obj, measure = "auc")
     roc_auc_df$roc_auc[i] <- auc_obj@y.values[[1]]
     
     # Directional hard call based on sign of beta
     if (beta_vec[i] >= 0) {
       # 0 = control, and 1/2 case
-      y_pred <- ifelse(df_test$snp > 0, 1, 0)
+      y_pred <- ifelse(df_val$snp > 0, 1, 0)
     } else {
       # 0 = case, and 1/2 control
-      y_pred <- ifelse(df_test$snp == 0, 1, 0)
+      y_pred <- ifelse(df_val$snp == 0, 1, 0)
     }
     
     # Precision / recall / F1 using ROSE
-    measures <- ROSE::accuracy.meas(df_test$y, prob_test, threshold = 0.5)
+    measures <- ROSE::accuracy.meas(df_val$y, prob_val, threshold = 0.5)
     precision_df$precision[i] <- measures[[3]]
     recall_df$recall[i]       <- measures[[4]]
     f1_df$f1_score[i]         <- measures[[5]]
     
     # Accuracy and balanced accuracy using yardstick
     df_temp <- data.frame(
-      truth     = factor(df_test$y,   levels = c(0, 1)),
+      truth     = factor(df_val$y,   levels = c(0, 1)),
       predicted = factor(y_pred,      levels = c(0, 1))
     )
     

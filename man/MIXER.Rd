@@ -9,6 +9,8 @@ MIXER(
   feature_train,
   y_val,
   feature_val,
+  y_test,
+  feature_test,
   top_k = 5000,
   family = "binomial",
   nfolds_ridge = 20,
@@ -17,7 +19,8 @@ MIXER(
   max_prop = 0.05,
   lambda_init_min = 150,
   lambda_init_max = 200,
-  nlambda_adalasso = 100
+  nlambda_adalasso = 100,
+  eval_threshold = 0.5
 )
 }
 \arguments{
@@ -28,6 +31,10 @@ MIXER(
 \item{y_val}{Validation outcome vector.}
 
 \item{feature_val}{Validation feature matrix/data.frame (samples x features).}
+
+\item{y_test}{Test outcome vector.}
+
+\item{feature_test}{Test feature matrix/data.frame (samples x features).}
 
 \item{top_k}{Number of top features per metric used for ridge regression.}
 
@@ -46,10 +53,12 @@ MIXER(
 \item{lambda_init_max}{Initial guess for lambda_max.}
 
 \item{nlambda_adalasso}{Number of lambdas for adaptive LASSO CV grid.}
+
+\item{eval_threshold}{Classification threshold for computing test metrics (default 0.5).}
 }
 \value{
 A list containing ranked features, ridge coefficients, PIM, feature weights,
-and adaptive LASSO selected features.
+adaptive LASSO selected features, and test-set performance of the final model.
 }
 \description{
 Multi-metric Integration for eXplanatory and prEdictive Ranking.

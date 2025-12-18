@@ -4,16 +4,16 @@
 \alias{rank_feature_metrics}
 \title{Rank features by multiple univariate metrics}
 \usage{
-rank_feature_metrics(y_train, feature_train, y_test, feature_test)
+rank_feature_metrics(y_train, feature_train, y_val, feature_val)
 }
 \arguments{
 \item{y_train}{Numeric vector (0/1), training outcome.}
 
 \item{feature_train}{Matrix/data.frame of features for training (rows = individuals, cols = features/SNPs).}
 
-\item{y_test}{Numeric vector (0/1), test/validation outcome.}
+\item{y_val}{Numeric vector (0/1), test/validation outcome.}
 
-\item{feature_test}{Matrix/data.frame of features for testing/validation (rows = individuals, cols = features/SNPs).}
+\item{feature_val}{Matrix/data.frame of features for testing/validation (rows = individuals, cols = features/SNPs).}
 }
 \value{
 A named list of data.frames. Each element corresponds to one metric

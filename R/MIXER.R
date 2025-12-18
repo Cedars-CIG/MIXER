@@ -17,7 +17,7 @@
 #' @param lambda_init_min Initial guess for lambda_min.
 #' @param lambda_init_max Initial guess for lambda_max.
 #' @param nlambda_adalasso Number of lambdas for adaptive LASSO CV grid.
-#' @param eval_threshold Classification threshold for computing accuracy/F1/etc on test (default 0.5).
+#' @param eval_threshold Classification threshold for computing test metrics (default 0.5).
 #'
 #' @return A list containing ranked features, ridge coefficients, PIM, feature weights,
 #' adaptive LASSO selected features, and test-set performance of the final model.
@@ -41,7 +41,7 @@ MIXER <- function(
     nlambda_adalasso = 100,
     eval_threshold = 0.5
 ) {
-  # Coerce to matrices to avoid surprises
+  # Coerce to matrices
   feature_train <- as.matrix(feature_train)
   feature_val   <- as.matrix(feature_val)
   feature_test  <- as.matrix(feature_test)
@@ -54,20 +54,12 @@ MIXER <- function(
   if (is.null(colnames(feature_val)))   colnames(feature_val)  <- colnames(feature_train)
   if (is.null(colnames(feature_test)))  colnames(feature_test) <- colnames(feature_train)
 
-  # Ensure validation/test columns align to train by name
-  common_val  <- intersect(colnames(feature_train), colnames(feature_val))
-  common_test <- intersect(colnames(feature_train), colnames(feature_test))
-  if (length(common_val) == 0)  stop("No overlapping feature names between train and validation.")
-  if (length(common_test) == 0) stop("No overlapping feature names between train and test.")
-
-  feature_train <- feature_train[, common_val, drop = FALSE]
-  feature_val   <- feature_val[,   common_val, drop = FALSE]
-
-  # For test: align to the same columns used by train/val
-  common_all <- intersect(colnames(feature_train), colnames(feature_test))
-  feature_train <- feature_train[, common_all, drop = FALSE]
-  feature_val   <- feature_val[,   common_all, drop = FALSE]
-  feature_test  <- feature_test[,  common_all, drop = FALSE]
+  # Align columns by name
+  common <- Reduce(intersect, list(colnames(feature_train), colnames(feature_val), colnames(feature_test)))
+  if (length(common) == 0) stop("No overlapping feature names among train/val/test matrices.")
+  feature_train <- feature_train[, common, drop = FALSE]
+  feature_val   <- feature_val[,   common, drop = FALSE]
+  feature_test  <- feature_test[,  common, drop = FALSE]
 
   # -----------------------------
   # Step 1: feature ranking by metrics
@@ -93,21 +85,15 @@ MIXER <- function(
 
   for (m in metric_names) {
     ranked_df <- ranked_list[[m]]
-
-    # Support both old ('SNP') and new ('feature') column names
     id_col <- if ("feature" %in% colnames(ranked_df)) "feature" else if ("SNP" %in% colnames(ranked_df)) "SNP" else NA_character_
-    if (is.na(id_col)) {
-      stop("Each element of ranked_list must contain a column named 'feature' (preferred) or 'SNP'. Missing in metric: ", m)
-    }
+    if (is.na(id_col)) stop("rank_feature_metrics output must contain 'feature' (preferred) or 'SNP' column. Metric: ", m)
 
     feats_m <- ranked_df[[id_col]]
-    k_m     <- min(top_k, length(feats_m))
+    k_m <- min(top_k, length(feats_m))
     top_feats <- feats_m[seq_len(k_m)]
 
     common_feats <- intersect(top_feats, colnames(feature_train))
-    if (length(common_feats) == 0) {
-      stop("No overlapping features between feature_train and ranked features for metric: ", m)
-    }
+    if (length(common_feats) == 0) stop("No overlapping features for metric: ", m)
 
     feature_train_list[[m]] <- feature_train[, common_feats, drop = FALSE]
     feature_val_list[[m]]   <- feature_val[,   common_feats, drop = FALSE]
@@ -169,89 +155,24 @@ MIXER <- function(
   )
 
   # -----------------------------
-  # Evaluate final model on TEST data
+  # Test evaluation (exported helper)
   # -----------------------------
-  # Expect df_selected to contain a fitted glmnet model, or enough information to build one.
-  final_model <- NULL
-  if (is.list(df_selected) && !is.null(df_selected$final_model)) {
-    final_model <- df_selected$final_model
-  } else if (inherits(df_selected, "glmnet") || inherits(df_selected, "cv.glmnet")) {
-    final_model <- df_selected
-  }
+  test_performance <- evaluate_mixer_model(
+    df_selected   = df_selected,
+    y_test        = y_test,
+    feature_test  = feature_test,
+    eval_threshold = eval_threshold
+  )
 
-  test_performance <- NULL
-  if (!is.null(final_model)) {
-    # Get predicted probabilities
-    prob_test <- tryCatch(
-      {
-        if (inherits(final_model, "cv.glmnet")) {
-          as.numeric(stats::predict(final_model, newx = feature_test, s = "lambda.min", type = "response"))
-        } else {
-          # For glmnet object without CV, use its internal lambda[which.min] if present; otherwise first lambda
-          s_use <- if (!is.null(final_model$lambda) && length(final_model$lambda) > 0) final_model$lambda[1] else NULL
-          as.numeric(stats::predict(final_model, newx = feature_test, s = s_use, type = "response"))
-        }
-      },
-      error = function(e) NULL
-    )
-
-    if (!is.null(prob_test)) {
-      y_pred <- ifelse(prob_test >= eval_threshold, 1, 0)
-
-      # Accuracy
-      acc <- mean(y_pred == y_test)
-
-      # AUC (safe)
-      auc <- NA_real_
-      if (length(unique(y_test)) == 2) {
-        pred_obj <- ROCR::prediction(prob_test, y_test)
-        auc_obj  <- ROCR::performance(pred_obj, "auc")
-        auc <- as.numeric(auc_obj@y.values[[1]])
-      }
-
-      # Precision / recall / F1 (safe)
-      precision <- recall <- f1 <- NA_real_
-      meas <- tryCatch(ROSE::accuracy.meas(y_test, prob_test, threshold = eval_threshold), error = function(e) NULL)
-      if (!is.null(meas) && length(meas) >= 5) {
-        precision <- meas[[3]]
-        recall    <- meas[[4]]
-        f1        <- meas[[5]]
-      }
-
-      # Balanced accuracy
-      df_temp <- data.frame(
-        truth     = factor(y_test, levels = c(0, 1)),
-        predicted = factor(y_pred, levels = c(0, 1))
-      )
-      ba_tbl <- yardstick::bal_accuracy(df_temp, truth = truth, estimate = predicted)
-      bal_acc <- ba_tbl$.estimate[1]
-
-      test_performance <- list(
-        threshold = eval_threshold,
-        accuracy = acc,
-        balanced_accuracy = bal_acc,
-        precision = precision,
-        recall = recall,
-        f1 = f1,
-        roc_auc = auc
-      )
-    }
-  } else {
-    warning("Could not locate a fitted final model in adaptive_lasso output; test performance not computed.")
-  }
-
-  # -----------------------------
-  # Return full result object
-  # -----------------------------
   list(
-    ranked_features     = ranked_list,          # Step 1 output
-    feature_train_list  = feature_train_list,   # top features per metric (train)
-    feature_val_list    = feature_val_list,     # top features per metric (val)
-    ridge_coef_list     = ridge_coef_list,      # ridge coefs per metric
-    PIM                 = pim_df,               # metric-level PIM
-    feature_coef_all    = df_coef_all,          # union of features with per-metric |beta|
-    feature_weights     = df_weight,            # feature-level adaptive weights
-    adaptive_lasso      = df_selected,          # final selected features & coefficients / model
-    test_performance    = test_performance      # final model performance on test set
+    ranked_features     = ranked_list,
+    feature_train_list  = feature_train_list,
+    feature_val_list    = feature_val_list,
+    ridge_coef_list     = ridge_coef_list,
+    PIM                 = pim_df,
+    feature_coef_all    = df_coef_all,
+    feature_weights     = df_weight,
+    adaptive_lasso      = df_selected,
+    test_performance    = test_performance
   )
 }

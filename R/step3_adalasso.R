@@ -235,3 +235,114 @@ run_adaptive_LASSO <- function(
   
   df_coef
 }
+
+
+
+#' Evaluate a fitted final model on test data
+#'
+#' This helper extracts the fitted final model from an adaptive LASSO output
+#' (or accepts a glmnet/cv.glmnet model directly), generates predicted
+#' probabilities on the test set, and computes standard classification metrics.
+#'
+#' @param df_selected Output from \code{run_adaptive_LASSO()} or a fitted
+#'   \code{glmnet}/\code{cv.glmnet} object. If a list is provided, it should
+#'   contain a fitted model in \code{$final_model}.
+#' @param y_test Numeric vector (0/1), test outcome.
+#' @param feature_test Matrix/data.frame of test features (rows = samples, cols = features).
+#' @param eval_threshold Classification threshold for hard predictions. Default 0.5.
+#' @param s For \code{cv.glmnet} models, which lambda to use (default \code{"lambda.min"}).
+#'   Ignored for plain \code{glmnet} objects.
+#'
+#' @return A list with elements \code{threshold}, \code{accuracy},
+#'   \code{balanced_accuracy}, \code{precision}, \code{recall}, \code{f1},
+#'   \code{roc_auc}. Returns \code{NULL} if predictions cannot be computed.
+#'
+#' @examples
+#' \dontrun{
+#' out <- simulation_data(seed = 1)
+#' res <- MIXER(out$y_train, out$feature_train, out$y_val, out$feature_val,
+#'              out$y_test, out$feature_test)
+#' perf <- evaluate_mixer_model(res$adaptive_lasso, out$y_test, out$feature_test)
+#' }
+#'
+#' @export
+evaluate_mixer_model <- function(df_selected,
+                                 y_test,
+                                 feature_test,
+                                 eval_threshold = 0.5,
+                                 s = "lambda.min") {
+  feature_test <- as.matrix(feature_test)
+  if (nrow(feature_test) != length(y_test)) stop("nrow(feature_test) must equal length(y_test).")
+
+  # Extract model
+  final_model <- NULL
+  if (is.list(df_selected) && !is.null(df_selected$final_model)) {
+    final_model <- df_selected$final_model
+  } else if (inherits(df_selected, "glmnet") || inherits(df_selected, "cv.glmnet")) {
+    final_model <- df_selected
+  }
+
+  if (is.null(final_model)) {
+    warning("Could not locate a fitted final model in adaptive_lasso output; test performance not computed.")
+    return(NULL)
+  }
+
+  # Predicted probabilities
+  prob_test <- tryCatch(
+    {
+      if (inherits(final_model, "cv.glmnet")) {
+        as.numeric(stats::predict(final_model, newx = feature_test, s = s, type = "response"))
+      } else {
+        # For glmnet object without CV, use first lambda by default
+        s_use <- if (!is.null(final_model$lambda) && length(final_model$lambda) > 0) final_model$lambda[1] else NULL
+        as.numeric(stats::predict(final_model, newx = feature_test, s = s_use, type = "response"))
+      }
+    },
+    error = function(e) NULL
+  )
+
+  if (is.null(prob_test)) return(NULL)
+
+  y_pred <- ifelse(prob_test >= eval_threshold, 1, 0)
+
+  # Accuracy
+  acc <- mean(y_pred == y_test)
+
+  # ROC AUC (safe)
+  auc <- NA_real_
+  if (length(unique(y_test)) == 2) {
+    pred_obj <- ROCR::prediction(prob_test, y_test)
+    auc_obj  <- ROCR::performance(pred_obj, "auc")
+    auc <- as.numeric(auc_obj@y.values[[1]])
+  }
+
+  # Precision / recall / F1 (safe)
+  precision <- recall <- f1 <- NA_real_
+  meas <- tryCatch(
+    ROSE::accuracy.meas(y_test, prob_test, threshold = eval_threshold),
+    error = function(e) NULL
+  )
+  if (!is.null(meas) && length(meas) >= 5) {
+    precision <- meas[[3]]
+    recall    <- meas[[4]]
+    f1        <- meas[[5]]
+  }
+
+  # Balanced accuracy
+  df_temp <- data.frame(
+    truth     = factor(y_test, levels = c(0, 1)),
+    predicted = factor(y_pred, levels = c(0, 1))
+  )
+  ba_tbl <- yardstick::bal_accuracy(df_temp, truth = truth, estimate = predicted)
+  bal_acc <- ba_tbl$.estimate[1]
+
+  list(
+    threshold = eval_threshold,
+    accuracy = acc,
+    balanced_accuracy = bal_acc,
+    precision = precision,
+    recall = recall,
+    f1 = f1,
+    roc_auc = auc
+  )
+}

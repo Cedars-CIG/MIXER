@@ -3,6 +3,7 @@
 export(MIXER)
 export(compute_PIM)
 export(compute_feature_weights)
+export(evaluate_mixer_model)
 export(rank_feature_metrics)
 export(run_adaptive_LASSO)
 export(simulation_data)

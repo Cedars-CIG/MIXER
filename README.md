@@ -75,30 +75,46 @@ The file `features.csv` contains a simulated example feature matrix with 5000 in
 
 ```r
 # Example inputs:
-#   y_train:         binary outcome (training)
+#   y_train:         binary outcome (training set)
 #   feature_train:   feature matrix for training (samples × features)
-#   y_val:           binary outcome (validation)
-#   feature_val:     feature matrix for validation
+#   y_val:           binary outcome (validation set)
+#   feature_val:     feature matrix for validation (samples × features)
+#   y_test:          binary outcome (test set)
+#   feature_test:    feature matrix for test set (samples × features)
 
 library(MIXER)
 
 result <- MIXER(
-  y_train        = y_train,
-  feature_train = feature_train,
-  y_val          = y_val,
-  feature_val   = feature_val,
-  top_k          = 5000,     # number of top features used in ridge per metric
-  n_threshold    = 2000,     # number of thresholds for PIM construction
-  min_num        = 10,       # minimum target feature count (lambda_max tuning)
-  max_prop       = 0.05,     # maximum proportion of features allowed (lambda_min tuning)
-  lambda_init_min = 150,
-  lambda_init_max = 200,
+  y_train          = y_train,
+  feature_train   = feature_train,
+  y_val            = y_val,
+  feature_val     = feature_val,
+  y_test           = y_test,
+  feature_test    = feature_test,
+  top_k            = 5000,     # number of top features used per metric in ridge regression
+  n_threshold      = 2000,     # number of thresholds for PIM construction
+  min_num          = 10,       # minimum target feature count (lambda_max tuning)
+  max_prop         = 0.05,     # maximum proportion of features allowed (lambda_min tuning)
+  lambda_init_min  = 150,
+  lambda_init_max  = 200,
   nlambda_adalasso = 100
 )
 
+```r
 # Returned object:
-# result$ranked_features     # list of ranked features by metric
-# result$ridge_coef_list     # ridge coefficients per metric
-# result$PIM                 # Predictive Importance Metric per feature subset
-# result$feature_weights     # adaptive feature-level weights
-# result$adaptive_lasso      # final selected features and coefficients
+
+# Step 1 outputs
+result$ranked_features        # list of ranked features by univariate metrics
+
+# Step 2 outputs
+result$ridge_coef_list        # ridge regression coefficients per metric
+result$PIM                    # Predictive Importance Metric (metric-level weights)
+result$feature_coef_all       # union of features with per-metric ridge coefficients
+result$feature_weights        # feature-level adaptive weights
+
+# Step 3 outputs
+result$adaptive_lasso         # final adaptive LASSO model / selected features
+
+# Final evaluation
+result$test_performance       # predictive performance on the test set
+

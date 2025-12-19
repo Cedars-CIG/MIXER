@@ -2,7 +2,7 @@
 % Please edit documentation in R/step3_adalasso.R
 \name{evaluate_mixer_model}
 \alias{evaluate_mixer_model}
-\title{Evaluate final MIXER model on test data via PRS + threshold moving}
+\title{Evaluate final MIXER model on test data via PRS + threshold moving (best-threshold summary)}
 \usage{
 evaluate_mixer_model(
   df_selected,
@@ -15,31 +15,45 @@ evaluate_mixer_model(
 )
 }
 \arguments{
-\item{df_selected}{Output from run_adaptive_LASSO(), or a glmnet/cv.glmnet model,
-or a data.frame/list containing selected features and coefficients.}
+\item{df_selected}{Output from \code{run_adaptive_LASSO()}, or a fitted \code{glmnet}/\code{cv.glmnet}
+object, or a data.frame/list containing selected features and coefficients.}
 
 \item{y_test}{Numeric vector (0/1), test outcome.}
 
 \item{feature_test}{Matrix/data.frame of test features (rows = samples, cols = features).}
 
-\item{threshold_list}{Optional numeric vector of thresholds. If provided, overrides
-automatic grid construction.}
+\item{threshold_list}{Optional numeric vector of thresholds passed to \code{threshold_moving_func()}.
+If \code{NULL}, thresholds are constructed automatically.}
 
-\item{n_grid}{Number of thresholds if grid is constructed automatically. Default 1000.}
+\item{n_grid}{Number of thresholds if thresholds are constructed automatically. Default 1000.}
 
-\item{threshold_grid}{One of c("prob_range","unit").
-\itemize{
-\item "prob_range": let threshold_moving_func() generate thresholds from \eqn{[min(prob), max(prob)]}
-\item "unit": use a fixed seq(0,1,length.out=n_grid)
-}}
+\item{threshold_grid}{One of \code{c("prob_range", "unit")}.
+If \code{"prob_range"}, thresholds are generated from the predicted-probability range.
+If \code{"unit"}, thresholds use a fixed grid on 0 to 1.}
 
-\item{s}{For cv.glmnet models, which lambda to use (default "lambda.min").}
+\item{s}{For \code{cv.glmnet} models, which lambda to use (default \code{"lambda.min"}).}
 }
 \value{
 A list with:
-prs, glm_prs, threshold_moving
+\itemize{
+\item \code{prs}: numeric PRS values on the test set
+\item \code{glm_prs}: fitted logistic model \code{y ~ prs}
+\item \code{threshold_moving}: full data.frame returned by \code{threshold_moving_func()}
+\item \code{best_threshold}: numeric best threshold
+\item \code{best_row}: one-row data.frame at the best threshold
+\item \code{prevalence}: test-set prevalence \code{mean(y_test)}
+}
 }
 \description{
-Computes PRS on the test set from final selected coefficients, fits a logistic
-model y ~ prs, then runs threshold moving to obtain performance across thresholds.
+This function evaluates the final MIXER result on an independent test set using the
+same procedure as \code{threshold_moving_func()}: compute a PRS on the test set from
+the final selected coefficients, fit a logistic model \code{y ~ prs}, and run
+threshold moving to obtain performance metrics across thresholds.
+}
+\details{
+In addition to returning the full threshold-moving table, this function also returns
+a one-row summary at \code{best_threshold}. The \code{best_threshold} is selected as:
+among thresholds with \code{above_threshold >= prevalence}, choose the threshold whose
+\code{above_threshold} is closest to the test-set prevalence, where
+\code{prevalence = mean(y_test)}. If ties occur, the largest threshold is used.
 }

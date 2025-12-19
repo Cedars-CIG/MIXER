@@ -237,112 +237,135 @@ run_adaptive_LASSO <- function(
 }
 
 
-
-#' Evaluate a fitted final model on test data
+#' Evaluate final MIXER model on test data via PRS + threshold moving
 #'
-#' This helper extracts the fitted final model from an adaptive LASSO output
-#' (or accepts a glmnet/cv.glmnet model directly), generates predicted
-#' probabilities on the test set, and computes standard classification metrics.
+#' Computes PRS on the test set from final selected coefficients, fits a logistic
+#' model y ~ prs, then runs threshold moving to obtain performance across thresholds.
 #'
-#' @param df_selected Output from \code{run_adaptive_LASSO()} or a fitted
-#'   \code{glmnet}/\code{cv.glmnet} object. If a list is provided, it should
-#'   contain a fitted model in \code{$final_model}.
+#' @param df_selected Output from run_adaptive_LASSO(), or a glmnet/cv.glmnet model,
+#'   or a data.frame/list containing selected features and coefficients.
 #' @param y_test Numeric vector (0/1), test outcome.
 #' @param feature_test Matrix/data.frame of test features (rows = samples, cols = features).
-#' @param eval_threshold Classification threshold for hard predictions. Default 0.5.
-#' @param s For \code{cv.glmnet} models, which lambda to use (default \code{"lambda.min"}).
-#'   Ignored for plain \code{glmnet} objects.
+#' @param threshold_list Optional numeric vector of thresholds. If provided, overrides
+#'   automatic grid construction.
+#' @param n_grid Number of thresholds if grid is constructed automatically. Default 1000.
+#' @param threshold_grid One of c("prob_range","unit").
+#'   - "prob_range": let threshold_moving_func() generate thresholds from \eqn{[min(prob), max(prob)]}
+#'   - "unit": use a fixed seq(0,1,length.out=n_grid)
+#' @param s For cv.glmnet models, which lambda to use (default "lambda.min").
 #'
-#' @return A list with elements \code{threshold}, \code{accuracy},
-#'   \code{balanced_accuracy}, \code{precision}, \code{recall}, \code{f1},
-#'   \code{roc_auc}. Returns \code{NULL} if predictions cannot be computed.
-#'
-#' @examples
-#' \dontrun{
-#' out <- simulation_data(seed = 1)
-#' res <- MIXER(out$y_train, out$feature_train, out$y_val, out$feature_val,
-#'              out$y_test, out$feature_test)
-#' perf <- evaluate_mixer_model(res$adaptive_lasso, out$y_test, out$feature_test)
-#' }
+#' @return A list with:
+#'   prs, glm_prs, threshold_moving
 #'
 #' @export
 evaluate_mixer_model <- function(df_selected,
                                  y_test,
                                  feature_test,
-                                 eval_threshold = 0.5,
+                                 threshold_list = NULL,
+                                 n_grid = 1000,
+                                 threshold_grid = c("prob_range", "unit"),
                                  s = "lambda.min") {
+
+  threshold_grid <- match.arg(threshold_grid)
+
   feature_test <- as.matrix(feature_test)
   if (nrow(feature_test) != length(y_test)) stop("nrow(feature_test) must equal length(y_test).")
+  if (is.null(colnames(feature_test))) stop("feature_test must have column names (feature IDs).")
 
-  # Extract model
-  final_model <- NULL
-  if (is.list(df_selected) && !is.null(df_selected$final_model)) {
-    final_model <- df_selected$final_model
+  # -----------------------------
+  # 1) Extract final coefficients
+  # -----------------------------
+  coef_vec <- NULL
+
+  # Case A: list with $final_model
+  if (is.list(df_selected) && !is.null(df_selected$final_model) &&
+      (inherits(df_selected$final_model, "glmnet") || inherits(df_selected$final_model, "cv.glmnet"))) {
+
+    fm <- df_selected$final_model
+    cmat <- if (inherits(fm, "cv.glmnet")) {
+      stats::coef(fm, s = s)
+    } else {
+      s_use <- if (!is.null(fm$lambda) && length(fm$lambda) > 0) fm$lambda[1] else NULL
+      stats::coef(fm, s = s_use)
+    }
+
+    cmat <- as.matrix(cmat)
+    vals <- as.numeric(cmat[, 1])
+    names(vals) <- rownames(cmat)
+    coef_vec <- vals[setdiff(names(vals), "(Intercept)")]
+
+  # Case B: df_selected is glmnet/cv.glmnet
   } else if (inherits(df_selected, "glmnet") || inherits(df_selected, "cv.glmnet")) {
-    final_model <- df_selected
-  }
 
-  if (is.null(final_model)) {
-    warning("Could not locate a fitted final model in adaptive_lasso output; test performance not computed.")
-    return(NULL)
-  }
+    fm <- df_selected
+    cmat <- if (inherits(fm, "cv.glmnet")) {
+      stats::coef(fm, s = s)
+    } else {
+      s_use <- if (!is.null(fm$lambda) && length(fm$lambda) > 0) fm$lambda[1] else NULL
+      stats::coef(fm, s = s_use)
+    }
 
-  # Predicted probabilities
-  prob_test <- tryCatch(
-    {
-      if (inherits(final_model, "cv.glmnet")) {
-        as.numeric(stats::predict(final_model, newx = feature_test, s = s, type = "response"))
-      } else {
-        # For glmnet object without CV, use first lambda by default
-        s_use <- if (!is.null(final_model$lambda) && length(final_model$lambda) > 0) final_model$lambda[1] else NULL
-        as.numeric(stats::predict(final_model, newx = feature_test, s = s_use, type = "response"))
+    cmat <- as.matrix(cmat)
+    vals <- as.numeric(cmat[, 1])
+    names(vals) <- rownames(cmat)
+    coef_vec <- vals[setdiff(names(vals), "(Intercept)")]
+
+  # Case C: selected feature+coef table
+  } else {
+    cand <- NULL
+    if (is.list(df_selected) && !is.null(df_selected$df_selected) && is.data.frame(df_selected$df_selected)) {
+      cand <- df_selected$df_selected
+    } else if (is.list(df_selected) && !is.null(df_selected$selected_df) && is.data.frame(df_selected$selected_df)) {
+      cand <- df_selected$selected_df
+    } else if (is.data.frame(df_selected)) {
+      cand <- df_selected
+    }
+
+    if (!is.null(cand)) {
+      feat_col <- if ("feature" %in% names(cand)) "feature" else if ("SNP" %in% names(cand)) "SNP" else NA_character_
+      coef_col <- if ("coef" %in% names(cand)) "coef" else if ("beta" %in% names(cand)) "beta" else NA_character_
+      if (!is.na(feat_col) && !is.na(coef_col)) {
+        vals <- cand[[coef_col]]
+        names(vals) <- cand[[feat_col]]
+        coef_vec <- vals
       }
-    },
-    error = function(e) NULL
-  )
-
-  if (is.null(prob_test)) return(NULL)
-
-  y_pred <- ifelse(prob_test >= eval_threshold, 1, 0)
-
-  # Accuracy
-  acc <- mean(y_pred == y_test)
-
-  # ROC AUC (safe)
-  auc <- NA_real_
-  if (length(unique(y_test)) == 2) {
-    pred_obj <- ROCR::prediction(prob_test, y_test)
-    auc_obj  <- ROCR::performance(pred_obj, "auc")
-    auc <- as.numeric(auc_obj@y.values[[1]])
+    }
   }
 
-  # Precision / recall / F1 (safe)
-  precision <- recall <- f1 <- NA_real_
-  meas <- tryCatch(
-    ROSE::accuracy.meas(y_test, prob_test, threshold = eval_threshold),
-    error = function(e) NULL
-  )
-  if (!is.null(meas) && length(meas) >= 5) {
-    precision <- meas[[3]]
-    recall    <- meas[[4]]
-    f1        <- meas[[5]]
+  if (is.null(coef_vec) || length(coef_vec) == 0) {
+    stop("Could not extract final coefficients from df_selected.")
   }
 
-  # Balanced accuracy
-  df_temp <- data.frame(
-    truth     = factor(y_test, levels = c(0, 1)),
-    predicted = factor(y_pred, levels = c(0, 1))
+  common_feats <- intersect(names(coef_vec), colnames(feature_test))
+  if (length(common_feats) == 0) stop("No overlap between coefficient names and feature_test column names.")
+  coef_vec <- coef_vec[common_feats]
+
+  # -----------------------------
+  # 2) Compute PRS on test
+  # -----------------------------
+  prs <- as.numeric(feature_test[, common_feats, drop = FALSE] %*% coef_vec)
+
+  # -----------------------------
+  # 3) Fit y ~ prs and threshold moving
+  # -----------------------------
+  df_eval <- data.frame(y = y_test, prs = prs)
+  glm_prs <- stats::glm(y ~ prs, data = df_eval, family = stats::binomial("logit"))
+
+  # If user didn't pass thresholds, optionally enforce a fixed [0,1] grid.
+  if (is.null(threshold_list) && threshold_grid == "unit") {
+    threshold_list <- seq(0, 1, length.out = n_grid)
+  }
+
+  tm <- threshold_moving_func(
+    mod = glm_prs,
+    df = df_eval,
+    threshold_list = threshold_list,
+    n_grid = n_grid
   )
-  ba_tbl <- yardstick::bal_accuracy(df_temp, truth = truth, estimate = predicted)
-  bal_acc <- ba_tbl$.estimate[1]
 
   list(
-    threshold = eval_threshold,
-    accuracy = acc,
-    balanced_accuracy = bal_acc,
-    precision = precision,
-    recall = recall,
-    f1 = f1,
-    roc_auc = auc
+    prs = prs,
+    glm_prs = glm_prs,
+    threshold_moving = tm
   )
 }

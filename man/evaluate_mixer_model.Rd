@@ -2,46 +2,44 @@
 % Please edit documentation in R/step3_adalasso.R
 \name{evaluate_mixer_model}
 \alias{evaluate_mixer_model}
-\title{Evaluate a fitted final model on test data}
+\title{Evaluate final MIXER model on test data via PRS + threshold moving}
 \usage{
 evaluate_mixer_model(
   df_selected,
   y_test,
   feature_test,
-  eval_threshold = 0.5,
+  threshold_list = NULL,
+  n_grid = 1000,
+  threshold_grid = c("prob_range", "unit"),
   s = "lambda.min"
 )
 }
 \arguments{
-\item{df_selected}{Output from \code{run_adaptive_LASSO()} or a fitted
-\code{glmnet}/\code{cv.glmnet} object. If a list is provided, it should
-contain a fitted model in \code{$final_model}.}
+\item{df_selected}{Output from run_adaptive_LASSO(), or a glmnet/cv.glmnet model,
+or a data.frame/list containing selected features and coefficients.}
 
 \item{y_test}{Numeric vector (0/1), test outcome.}
 
 \item{feature_test}{Matrix/data.frame of test features (rows = samples, cols = features).}
 
-\item{eval_threshold}{Classification threshold for hard predictions. Default 0.5.}
+\item{threshold_list}{Optional numeric vector of thresholds. If provided, overrides
+automatic grid construction.}
 
-\item{s}{For \code{cv.glmnet} models, which lambda to use (default \code{"lambda.min"}).
-Ignored for plain \code{glmnet} objects.}
+\item{n_grid}{Number of thresholds if grid is constructed automatically. Default 1000.}
+
+\item{threshold_grid}{One of c("prob_range","unit").
+\itemize{
+\item "prob_range": let threshold_moving_func() generate thresholds from \eqn{[min(prob), max(prob)]}
+\item "unit": use a fixed seq(0,1,length.out=n_grid)
+}}
+
+\item{s}{For cv.glmnet models, which lambda to use (default "lambda.min").}
 }
 \value{
-A list with elements \code{threshold}, \code{accuracy},
-\code{balanced_accuracy}, \code{precision}, \code{recall}, \code{f1},
-\code{roc_auc}. Returns \code{NULL} if predictions cannot be computed.
+A list with:
+prs, glm_prs, threshold_moving
 }
 \description{
-This helper extracts the fitted final model from an adaptive LASSO output
-(or accepts a glmnet/cv.glmnet model directly), generates predicted
-probabilities on the test set, and computes standard classification metrics.
-}
-\examples{
-\dontrun{
-out <- simulation_data(seed = 1)
-res <- MIXER(out$y_train, out$feature_train, out$y_val, out$feature_val,
-             out$y_test, out$feature_test)
-perf <- evaluate_mixer_model(res$adaptive_lasso, out$y_test, out$feature_test)
-}
-
+Computes PRS on the test set from final selected coefficients, fits a logistic
+model y ~ prs, then runs threshold moving to obtain performance across thresholds.
 }

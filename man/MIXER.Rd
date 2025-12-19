@@ -20,7 +20,9 @@ MIXER(
   lambda_init_min = 150,
   lambda_init_max = 200,
   nlambda_adalasso = 100,
-  eval_threshold = 0.5
+  threshold_list = NULL,
+  n_grid_eval = 1000,
+  threshold_grid = c("prob_range", "unit")
 )
 }
 \arguments{
@@ -54,7 +56,14 @@ MIXER(
 
 \item{nlambda_adalasso}{Number of lambdas for adaptive LASSO CV grid.}
 
-\item{eval_threshold}{Classification threshold for computing test metrics (default 0.5).}
+\item{threshold_list}{Optional numeric vector of thresholds used in test evaluation.
+If NULL, thresholds are constructed automatically.}
+
+\item{n_grid_eval}{Number of thresholds if thresholds are constructed automatically (default 1000).}
+
+\item{threshold_grid}{One of c("prob_range","unit"). If \code{"prob_range"}, thresholds are
+generated from the predicted-probability range; if \code{"unit"}, thresholds use a fixed
+grid on \eqn{[0,1]}.}
 }
 \value{
 A list containing ranked features, ridge coefficients, PIM, feature weights,

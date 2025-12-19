@@ -17,7 +17,12 @@
 #' @param lambda_init_min Initial guess for lambda_min.
 #' @param lambda_init_max Initial guess for lambda_max.
 #' @param nlambda_adalasso Number of lambdas for adaptive LASSO CV grid.
-#' @param eval_threshold Classification threshold for computing test metrics (default 0.5).
+#' @param threshold_list Optional numeric vector of thresholds used in test evaluation.
+#'   If NULL, thresholds are constructed automatically.
+#' @param n_grid_eval Number of thresholds if thresholds are constructed automatically (default 1000).
+#' @param threshold_grid One of c("prob_range","unit"). If \code{"prob_range"}, thresholds are
+#'   generated from the predicted-probability range; if \code{"unit"}, thresholds use a fixed
+#'   grid on \eqn{[0,1]}.
 #'
 #' @return A list containing ranked features, ridge coefficients, PIM, feature weights,
 #' adaptive LASSO selected features, and test-set performance of the final model.
@@ -39,8 +44,12 @@ MIXER <- function(
     lambda_init_min = 150,
     lambda_init_max = 200,
     nlambda_adalasso = 100,
-    eval_threshold = 0.5
+    threshold_list = NULL,
+    n_grid_eval = 1000,
+    threshold_grid = c("prob_range", "unit")
 ) {
+  threshold_grid <- match.arg(threshold_grid)
+
   # Coerce to matrices
   feature_train <- as.matrix(feature_train)
   feature_val   <- as.matrix(feature_val)
@@ -158,10 +167,12 @@ MIXER <- function(
   # Test evaluation (exported helper)
   # -----------------------------
   test_performance <- evaluate_mixer_model(
-    df_selected   = df_selected,
-    y_test        = y_test,
-    feature_test  = feature_test,
-    eval_threshold = eval_threshold
+    df_selected     = df_selected,
+    y_test          = y_test,
+    feature_test    = feature_test,
+    threshold_list  = threshold_list,
+    n_grid          = n_grid_eval,
+    threshold_grid  = threshold_grid
   )
 
   list(

@@ -49,30 +49,30 @@ High-dimensional biomedical datasets routinely contain sparse signals embedded a
   5. Adaptive LASSO selection of the final feature set  
 
 ### Data Simulation
-- **features_example**
+- `load(features_example)`
   The dataset `features_example` contains a simulated feature matrix with 5,000 individuals and 16,470 features. The features were derived from a subsample of real-world UK Biobank data and subsequently anonymized by randomly permuting individuals, ensuring that no individual-level information is preserved while retaining realistic marginal distributions, sparsity patterns, and correlation structure across features. This dataset is provided for demonstration and testing purposes only.
 
-- **simulation_data()**  
+- `simulation_data()` 
   Simulates a binary outcome from a high-dimensional feature matrix, performs stratified train/validation/test splitting, and returns MIXER-ready datasets for end-to-end analysis.
 
 ### Step 1: Feature Ranking
-- **rank_feature_metrics()**  
+- `rank_feature_metrics()`  
   Computes per-feature accuracy, balanced accuracy, F1 score, precision, recall, p-value, and ROC-AUC using univariate models, and returns ranked feature lists for each metric.
 
 ### Step 2: Quantify Variable Selection Quality
-- **compute_PIM()**  
+- `compute_PIM()`  
   Quantifies the predictive importance of each feature subset by aggregating normalized performance metrics across validation thresholds.
 
-- **compute_feature_weights()**  
+- `compute_feature_weights()`  
   Integrates ridge regression coefficients with PIM scores to construct adaptive feature-level weights for downstream selection.
 
 ### Step 3: Unify Multiple Selection Criterion
-- **run_adaptive_LASSO()**  
+- `run_adaptive_LASSO()`  
   Tunes the adaptive LASSO penalty range and fits the final adaptive LASSO model to select informative features.
 
 ### Evaluation Utilities
 
-- **evaluate_mixer_model()**  
+- `evaluate_mixer_model()`  
   Evaluates the final adaptive LASSO model on an independent test set and reports classification performance metrics including accuracy, balanced accuracy, precision, recall, F1 score, and ROC AUC.
 
 
@@ -92,20 +92,24 @@ High-dimensional biomedical datasets routinely contain sparse signals embedded a
 library(MIXER)
 
 result <- MIXER(
-  y_train          = y_train,
-  feature_train   = feature_train,
-  y_val            = y_val,
-  feature_val     = feature_val,
-  y_test           = y_test,
-  feature_test    = feature_test,
-  top_k            = 5000,     # number of top features used per metric in ridge regression
-  n_threshold      = 2000,     # number of thresholds for PIM construction
-  min_num          = 10,       # minimum target feature count (lambda_max tuning)
-  max_prop         = 0.05,     # maximum proportion of features allowed (lambda_min tuning)
-  lambda_init_min  = 150,
-  lambda_init_max  = 200,
-  nlambda_adalasso = 100
+  y_train           = y_train,
+  feature_train    = feature_train,
+  y_val             = y_val,
+  feature_val      = feature_val,
+  y_test            = y_test,
+  feature_test     = feature_test,
+  top_k             = 5000,     # number of top features used per metric in ridge regression
+  n_threshold       = 2000,     # number of thresholds for PIM construction
+  min_num           = 10,       # minimum target feature count (lambda_max tuning)
+  max_prop          = 0.05,     # maximum proportion of features allowed (lambda_min tuning)
+  lambda_init_min   = 150,
+  lambda_init_max   = 200,
+  nlambda_adalasso  = 100,
+  threshold_list    = NULL,     # optional threshold grid for test evaluation
+  n_grid_eval       = 1000,     # number of thresholds if grid is constructed automatically
+  threshold_grid    = "prob_range"  # or "unit" for a fixed [0,1] grid
 )
+
 
 # Returned object:
 

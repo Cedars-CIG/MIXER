@@ -55,6 +55,17 @@ High-dimensional biomedical datasets routinely contain sparse signals embedded a
 - `simulation_data()` 
   Simulates a binary outcome from a high-dimensional feature matrix, performs stratified train/validation/test splitting, and returns MIXER-ready datasets for end-to-end analysis.
 
+  **Example structure (first few rows and selected features):**
+  | y | rs4010558 | rs2379981 | rs4535153 | rs9605903 | rs5747940 |
+  |---|-----------|-----------|-----------|-----------|-----------|
+  | 1 | 0 | 1 | 1 | 0 | 1 |
+  | 0 | 0 | 0 | 0 | 0 | 1 |
+  | 0 | 0 | 0 | 0 | 0 | 1 |
+  | 1 | 0 | 0 | 0 | 1 | 1 |
+  | 0 | 0 | 0 | 0 | 0 | 0 |
+
+  Here, `y` denotes a simulated binary outcome, and each column `rsXXXXXXX` represents a feature (e.g., SNP genotype coded numerically).
+
 ### Step 1: Feature Ranking
 - `rank_feature_metrics()`  
   Computes per-feature accuracy, balanced accuracy, F1 score, precision, recall, p-value, and ROC-AUC using univariate models, and returns ranked feature lists for each metric.
@@ -79,7 +90,7 @@ Below is an example illustrating how different metrics prioritize different feat
 </td>
 <td>
 
-**Top SNPs by −log₁₀(p-value)**
+**Top SNPs by −log₁₀(p)**
 
 | SNP        | −log₁₀(p) |
 |------------|-----------|
@@ -93,9 +104,9 @@ Below is an example illustrating how different metrics prioritize different feat
 </td>
 <td>
 
-**Top SNPs by Balanced Accuracy**
+**Top SNPs by Bal-Acc**
 
-| SNP        | Bal Acc |
+| SNP        | Bal-Acc |
 |------------|---------|
 | rs738304   | 0.6235 |
 | rs715559   | 0.6155 |
@@ -112,17 +123,75 @@ Below is an example illustrating how different metrics prioritize different feat
 - `compute_PIM()`  
   Quantifies the predictive importance of each feature subset by aggregating normalized performance metrics across validation thresholds.
 
+  **Example PIM output:**
+
+  | Metric     | PIM   |
+  |------------|-------|
+  | accuracy   | 0.8994 |
+  | bal_acc   | 6.6359 |
+  | f1_score  | 0.1739 |
+  | precision | 0.1817 |
+  | pval      | 5.4556 |
+  | recall    | 0.1817 |
+  | auc       | 6.8533 |
+
+  Larger PIM values indicate metrics whose selected feature subsets exhibit stronger and more stable predictive performance on validation data.
+
+
 - `compute_feature_weights()`  
   Integrates ridge regression coefficients with PIM scores to construct adaptive feature-level weights for downstream selection.
+
+  **Example adaptive feature weights:**
+
+  | SNP        | Weight |
+  |------------|--------|
+  | rs1001445  | 2.9291 |
+  | rs1003361  | 2.2386 |
+  | rs1003494  | 61.3991 |
+  | rs1003689  | 37.8316 |
+  | rs1003861  | 174.2316 |
+  | rs1004764  | 8.2372 |
+
+  These weights are used as `penalty.factor` in the adaptive LASSO step, enabling data-driven feature selection that balances multiple ranking criteria.
+
 
 ### Step 3: Unify Multiple Selection Criterion
 - `run_adaptive_LASSO()`  
   Tunes the adaptive LASSO penalty range and fits the final adaptive LASSO model to select informative features.
 
+  **Example selected features:**
+
+  | SNP         | Beta   |
+  |-------------|--------|
+  | rs17363716  | 0.4951 |
+  | rs11913227  | 0.2161 |
+  | rs5748965   | -0.5704 |
+  | rs5747200   | 0.0371 |
+  | rs13053651  | 0.3448 |
+  | rs3747032   | -0.0159 |
+
+  Positive and negative coefficients indicate the direction of association with the outcome after jointly accounting for all selected features. Features with coefficients shrunk to zero are excluded from the final model.
+
+
 ### Evaluation Utilities
 
 - `evaluate_mixer_model()`  
   Evaluates the final adaptive LASSO model on an independent test set and reports classification performance metrics including accuracy, balanced accuracy, precision, recall, F1 score, and ROC AUC.
+
+  **Example model evaluation results (test set):**
+
+  | Metric      | Value  |
+  |-------------|--------|
+  | Accuracy    | 0.8960 |
+  | Bal-Acc | 0.7891 |
+  | Precision   | 0.6389 |
+  | Recall      | 0.6389 |
+  | F1 Score    | 0.3194 |
+  | ROC AUC     | 0.9178 |
+  | −log₁₀(p) | 19.0717 |
+
+  These metrics summarize both predictive accuracy and class balance performance, providing a comprehensive assessment of the final MIXER-selected model.
+
 
 
 ---

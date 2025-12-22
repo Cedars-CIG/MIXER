@@ -65,7 +65,7 @@ Below is an example illustrating how different metrics prioritize different feat
 <tr>
 <td>
 
-**Top SNPs by ROC-AUC**
+**Top SNPs by AUC**
 
 | SNP        | AUC   |
 |------------|-------|
@@ -95,8 +95,8 @@ Below is an example illustrating how different metrics prioritize different feat
 
 **Top SNPs by Balanced Accuracy**
 
-| SNP        | Balanced Accuracy |
-|------------|-------------------|
+| SNP        | Bal Acc |
+|------------|---------|
 | rs738304   | 0.6235 |
 | rs715559   | 0.6155 |
 | rs715565   | 0.6155 |

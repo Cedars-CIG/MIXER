@@ -157,7 +157,7 @@ Below is an example illustrating how different metrics prioritize different feat
 
 ### Step 3: Unify Multiple Selection Criterion
 - `run_adaptive_LASSO()`  
-  Tunes the adaptive LASSO penalty range and fits the final adaptive LASSO model to select informative features.
+  Tunes the penalty range and fits the final adaptive LASSO model to select informative features.
 
   **Example selected features:**
 

@@ -59,6 +59,55 @@ High-dimensional biomedical datasets routinely contain sparse signals embedded a
 - `rank_feature_metrics()`  
   Computes per-feature accuracy, balanced accuracy, F1 score, precision, recall, p-value, and ROC-AUC using univariate models, and returns ranked feature lists for each metric.
 
+Below is an example illustrating how different metrics prioritize different features. Each table shows the top-ranked features under a specific metric.
+
+<table>
+<tr>
+<td>
+
+**Top SNPs by ROC-AUC**
+
+| SNP        | AUC   |
+|------------|-------|
+| rs229566   | 0.6437 |
+| rs5756708  | 0.6402 |
+| rs739040   | 0.6370 |
+| rs80303    | 0.6358 |
+| rs738304   | 0.6347 |
+| rs2235334  | 0.6346 |
+
+</td>
+<td>
+
+**Top SNPs by −log₁₀(p-value)**
+
+| SNP        | −log₁₀(p) |
+|------------|-----------|
+| rs1885364  | 14.7645 |
+| rs5752613  | 14.2251 |
+| rs3747032  | 13.6271 |
+| rs3747031  | 13.5874 |
+| rs2075455  | 12.9599 |
+| rs2034113  | 12.7683 |
+
+</td>
+<td>
+
+**Top SNPs by Balanced Accuracy**
+
+| SNP        | Balanced Accuracy |
+|------------|-------------------|
+| rs738304   | 0.6235 |
+| rs715559   | 0.6155 |
+| rs715565   | 0.6155 |
+| rs229566   | 0.6144 |
+| rs2187887  | 0.6100 |
+| rs2097465  | 0.6093 |
+
+</td>
+</tr>
+</table>
+
 ### Step 2: Quantify Variable Selection Quality
 - `compute_PIM()`  
   Quantifies the predictive importance of each feature subset by aggregating normalized performance metrics across validation thresholds.
